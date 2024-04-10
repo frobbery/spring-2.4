@@ -1,0 +1,52 @@
+package com.example.spring24.services.comment;
+
+
+import com.example.spring24.domain.Comment;
+import com.example.spring24.repository.CommentRepository;
+import com.example.spring24.services.book.BookService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+@RequiredArgsConstructor
+public class CommentServiceImpl implements CommentService {
+
+    private final CommentRepository commentRepository;
+
+    private final BookService bookService;
+
+    @Override
+    @Transactional
+    public long addCommentToBook(Comment comment) {
+        var savedComment = commentRepository.save(Comment.builder().text(comment.getText()).build());
+        var book = bookService.getBookById(comment.getBook().getId());
+        book.ifPresent(value -> commentRepository.updateCommentBook(savedComment.getId(), value));
+        return savedComment.getId();
+    }
+
+    @Override
+    public Optional<Comment> getCommentById(long id) {
+        return commentRepository.findById(id);
+    }
+
+    @Override
+    public List<Comment> getAllCommentsOfBook(long bookId) {
+        return commentRepository.findAllByBookId(bookId);
+    }
+
+    @Override
+    @Transactional
+    public void updateCommentTextById(long id, String newText) {
+        commentRepository.updateTextById(id, newText);
+    }
+
+    @Override
+    @Transactional
+    public void deleteCommentById(long id) {
+        commentRepository.deleteById(id);
+    }
+}
