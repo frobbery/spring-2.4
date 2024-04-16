@@ -4,7 +4,6 @@ package com.example.spring24.services.book;
 import com.example.spring24.domain.Author;
 import com.example.spring24.domain.Book;
 import com.example.spring24.domain.Genre;
-import com.example.spring24.repository.BookGenreRepository;
 import com.example.spring24.repository.BookRepository;
 import com.example.spring24.services.author.AuthorService;
 import com.example.spring24.services.genre.GenreService;
@@ -15,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
@@ -25,8 +25,6 @@ import static org.springframework.util.CollectionUtils.isEmpty;
 public class BookServiceImpl implements BookService {
 
     private final BookRepository bookRepository;
-
-    private final BookGenreRepository bookGenreRepository;
 
     private final AuthorService authorService;
 
@@ -44,12 +42,16 @@ public class BookServiceImpl implements BookService {
 
     private void saveGenres(long bookId, List<Genre> genres) {
         if (!isEmpty(genres)) {
-            genres.forEach(genre -> saveGenre(genre, bookId));
+            var book = getBookById(bookId);
+            if (book.isEmpty()) {
+                throw new IllegalArgumentException("There is no book with such id");
+            }
+            var updateBook = book.get();
+            updateBook.setGenres(genres.stream()
+                    .map(genreService::saveGenreIfNotExists)
+                    .collect(Collectors.toList()));
+            bookRepository.save(updateBook);
         }
-    }
-
-    private void saveGenre(Genre genre, long bookId) {
-        bookGenreRepository.addGenreToBook(bookRepository.findById(bookId), genreService.saveGenreIfNotExists(genre));
     }
 
     @Override
@@ -72,7 +74,7 @@ public class BookServiceImpl implements BookService {
         var oldBook = oldBookOptional.get();
         if ((nonNull(oldBook.getName()) && !oldBook.getName().equals(newBook.getName())) ||
                 (isNull(oldBook.getName()) && nonNull(newBook.getName()))) {
-            bookRepository.updateNameById(newBook.getId(), newBook.getName());
+            oldBook.setName(newBook.getName());
         }
         if ((nonNull(oldBook.getAuthor()) &&
                 (isNull(newBook.getAuthor()) || !oldBook.getAuthor().getFullName().equals(newBook.getAuthor().getFullName())))
@@ -83,24 +85,12 @@ public class BookServiceImpl implements BookService {
             } else {
                 author = authorService.saveAuthorIfNotExists(newBook.getAuthor());
             }
-            bookRepository.updateAuthor(newBook.getId(), author);
+            oldBook.setAuthor(author);
         }
         if (!(oldBook.getGenres().size() == newBook.getGenres().size() && new HashSet<>(oldBook.getGenres()).containsAll(newBook.getGenres()))) {
-            updateGenres(oldBook.getGenres(), newBook.getId(), newBook.getGenres());
+            oldBook.setGenres(newBook.getGenres());
         }
-    }
-
-    private void updateGenres(List<Genre> oldGenres, long bookId, List<Genre> genres) {
-        if (isEmpty(genres)) {
-            bookGenreRepository.deleteBookGenreLinks(getBookById(bookId));
-        } else {
-            genres.stream()
-                    .filter(genre -> !oldGenres.contains(genre))
-                    .forEach(genre -> bookGenreRepository.addGenreToBook(getBookById(bookId), genre));
-            oldGenres.stream()
-                    .filter(genre -> !genres.contains(genre))
-                    .forEach(genre -> bookGenreRepository.deleteGenreFromBook(getBookById(bookId), genre));
-        }
+        bookRepository.save(oldBook);
     }
 
     @Override

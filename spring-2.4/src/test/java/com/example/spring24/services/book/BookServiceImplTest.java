@@ -3,7 +3,6 @@ package com.example.spring24.services.book;
 import com.example.spring24.domain.Author;
 import com.example.spring24.domain.Book;
 import com.example.spring24.domain.Genre;
-import com.example.spring24.repository.BookGenreRepository;
 import com.example.spring24.repository.BookRepository;
 import com.example.spring24.services.author.AuthorService;
 import com.example.spring24.services.genre.GenreService;
@@ -32,9 +31,6 @@ class BookServiceImplTest {
 
     @Mock
     private BookRepository bookRepository;
-
-    @Mock
-    private BookGenreRepository bookGenreRepository;
 
     @Mock
     private AuthorService authorService;
@@ -82,7 +78,6 @@ class BookServiceImplTest {
         //then
         assertEquals(bookFromDao.getId(), result);
         verify(bookRepository, times(1)).updateAuthor(bookFromDao.getId(), authorFromService);
-        verify(bookGenreRepository, times(1)).addGenreToBook(Optional.of(book), genreFromService);
     }
 
     @Test
@@ -172,9 +167,7 @@ class BookServiceImplTest {
         sut.updateBookById(expectedBook);
 
         //then
-        verify(bookRepository, times(1)).updateNameById(expectedBook.getId(), expectedBook.getName());
-        verify(bookRepository, times(1)).updateAuthor(expectedBook.getId(), newAuthor);
-        verify(bookGenreRepository, times(1)).deleteBookGenreLinks(Optional.of(bookBefore));
+        verify(bookRepository, times(1)).save(expectedBook);
     }
 
     private static Stream<Arguments> getAuthorsAndNamesCombinations() {
@@ -223,10 +216,7 @@ class BookServiceImplTest {
         sut.updateBookById(expectedBook);
 
         //then
-        verify(bookRepository, times(0)).updateNameById(expectedBook.getId(), expectedBook.getName());
-        verify(bookRepository, times(0)).updateAuthor(expectedBook.getId(), expectedBook.getAuthor());
-        verify(bookGenreRepository, times(1)).addGenreToBook(Optional.of(bookBefore), newGenre);
-        verify(bookGenreRepository, times(1)).deleteGenreFromBook(Optional.of(bookBefore), oldGenre);
+        verify(bookRepository, times(1)).save(expectedBook);
     }
 
     @Test
